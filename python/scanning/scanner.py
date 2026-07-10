@@ -1,0 +1,206 @@
+from errors import error
+
+class Scanner:
+    def __init__(self, source: str):
+        self.source: str = source
+        self.tokens: list[Token] = list()
+        self.line: int = 0
+
+    def addToken(self, token: Token) -> None:
+        self.tokens.append(token)
+
+
+    def peek(self, i: int) -> str | None:
+        if i >= len(self.source):
+            return None
+        return self.source[i]
+
+    def matchAt(self, i: int, char: str) -> bool:
+        if i >= len(self.source) or self.source[i] != char:
+            return False
+        return True
+    
+    def scanTokens(self) -> list[Token]:
+        self.line = 0
+        self.tokens.clear()
+
+        shouldSkip: bool = False
+        insideComment: bool = False
+        insideString: bool = False
+        insideNumber: bool = False
+        insideIdentifier: bool = False
+        decimalDotWasVisited: bool = False
+
+        scanRange: tuple[int, int] = (0,0)
+        for i, c in enumerate(self.source):
+            if insideComment and c != "\n":
+                continue
+            insideComment = False
+
+            if insideString and c != "\"":
+                if c == "\n":
+                    self.line += 1
+                continue
+            else:
+                scanRange = (scanRange[0], i)
+            
+            #not inside string
+            if c.isalpha() or c=="_":
+                if not insideIdentifier:
+                    scanRange = (i, scanRange[1])
+                insideIdentifier = True
+            elif insideIdentifier:
+                nextChar: str | None = self.peek(i+1) 
+                if (not nextChar) or not (c.isalpha() or c=="_" or c.isdigit()):
+                    insideIdentifier = False
+                    scanRange = (scanRange[0], i)
+                    identifier: str = self.source[scanRange[0]:scanRange[1]]
+                    if identifier in KeywordMap.keys():
+                        self.addToken(Token(KeywordMap[identifier], identifier, None, self.line))
+                    else:
+                        self.addToken(Token(TokenType.IDENTIFIER, identifier, None, self.line))
+                    
+            if insideIdentifier:
+                continue
+
+            if shouldSkip:
+                shouldSkip = False
+                continue
+
+            if c.isdigit():
+                if not insideNumber:
+                    scanRange = (i, scanRange[1])
+                insideNumber = True
+            elif insideNumber:
+                nextChar = self.peek(i+1)
+                if c == ".":
+                    if not nextChar or not nextChar.isdigit():
+                        error(self.line, "decimal dot should be followed by digit") 
+                    if decimalDotWasVisited:
+                        error(self.line, "decimal dot was already visited")
+                    decimalDotWasVisited = True
+                else:
+                    insideNumber = False
+                    scanRange = (scanRange[0], i)
+                    self.addToken(Token(TokenType.NUMBER, self.source[scanRange[0]:scanRange[1]], None, self.line))
+            
+            if insideNumber:
+                continue
+            decimalDotWasVisited = False
+
+            match c:
+                case "\n":
+                    self.line += 1
+                    insideComment = False
+                case " " | "\r" | "\t":
+                    pass
+                case "(":
+                    self.addToken(Token(TokenType.LEFT_PAREN, c, None, self.line))
+                case ")":
+                    self.addToken(Token(TokenType.RIGHT_PAREN, c, None, self.line))
+                case "{":
+                    self.addToken(Token(TokenType.LEFT_BRACE, c, None, self.line))
+                case "}":
+                    self.addToken(Token(TokenType.RIGHT_BRACE, c, None, self.line))
+                case ",":
+                    self.addToken(Token(TokenType.COMMA, c, None, self.line))
+                case ";":
+                    self.addToken(Token(TokenType.SEMICOLON, c, None, self.line))
+                case "=":
+                    if self.matchAt(i+1, "="):
+                        self.addToken(Token(TokenType.EQUAL_EQUAL, "==", None, self.line))
+                        shouldSkip = True
+                    else:
+                        self.addToken(Token(TokenType.EQUAL, c, None, self.line))
+                case "!":
+                    if self.matchAt(i+1, "="):
+                        self.addToken(Token(TokenType.BANG_EQUAL, "!=", None, self.line))
+                        shouldSkip = True
+                    else:
+                        self.addToken(Token(TokenType.BANG, c, None, self.line))
+                case "/":
+                    if self.matchAt(i+1, "/"):
+                        insideComment = True
+                    else:
+                        self.addToken(Token(TokenType.SLASH, c, None, self.line))
+                case "\"":
+                    if not insideString:
+                        scanRange = (i+1, scanRange[1])
+                        insideString = True
+                        continue
+                    insideString = False
+                    str_literal: str = self.source[scanRange[0]:scanRange[1]]
+                    self.addToken(Token(TokenType.STRING, str_literal, None, self.line))
+                    
+                case _:
+                    error(self.line, f"Unrecognized token \"{c}\"")
+        ...
+
+        self.tokens.append(Token(TokenType.EOF, "", None, self.line))
+        return self.tokens.copy()
+
+from enum import StrEnum, auto
+
+class Token:
+    def __init__(self, type: TokenType, lexeme: str, literal: object, line: int):
+        self.type = type
+        self.lexeme = lexeme
+        self.literal = object
+        self.line = line
+    
+    def __str__(self) -> str:
+        return f"({self.type} [{self.line}] {self.lexeme} {self.literal})"
+
+
+
+class TokenType(StrEnum):
+    LEFT_PAREN = auto()
+    RIGHT_PAREN = auto()
+    LEFT_BRACE = auto()
+    RIGHT_BRACE = auto()
+    COMMA = auto()
+    SEMICOLON = auto()
+    BANG = auto()
+
+    EQUAL = auto()
+
+    SLASH = auto()
+    STAR = auto()
+
+    IDENTIFIER = auto()
+    STRING = auto()
+    NUMBER = auto()
+
+    VAR = auto()
+    EOF = auto()
+
+    EQUAL_EQUAL = auto()
+    BANG_EQUAL = auto()
+
+    PLUS = auto()
+    MINUS = auto()
+    
+    AND = auto()
+    OR = auto()
+    IF = auto()
+    ELSE = auto()
+    CLASS = auto()
+    TRUE = auto()
+    FALSE = auto()
+    FOR = auto()
+    PRINT = auto()
+    RETURN = auto()
+    THIS = auto()
+    WHILE = auto()
+    FUN = auto()
+
+
+KeywordMap = {
+    "for": TokenType.FOR,
+    "fun": TokenType.FUN,
+    "var": TokenType.VAR,
+    "true": TokenType.TRUE,
+    "false": TokenType.FALSE,
+    "and": TokenType.AND,
+    "or": TokenType.OR
+}
