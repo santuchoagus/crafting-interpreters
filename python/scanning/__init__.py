@@ -1,3 +1,3 @@
-from .scanner import Scanner, Token
+from .scanner import Scanner, Token, TokenType
 
-__all__ = ["Scanner", "Token"]
+__all__ = ["Scanner", "Token", "TokenType"]

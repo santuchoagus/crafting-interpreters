@@ -1,4 +1,4 @@
-from scanning.scanner import Token
+from scanning import Token
 from typing import Literal, Protocol, TypeVar, Generic
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -15,7 +15,13 @@ class Expr(ABC):
         def visitBinaryExpr(self, expr: BinaryExpr) -> R: ...
         def visitTernaryExpr(self, expr: TernaryExpr) -> R: ...
         def visitGroupingExpr(self, expr: GroupingExpr) -> R: ...
+        def visitErrorExpr(self, expr: ErrorExpr) -> R: ...
 
+
+@dataclass
+class ErrorExpr(Expr):
+    def accept(self, visitor: Expr.Visitor[R]) -> R:
+        return visitor.visitErrorExpr(self)
 
 class LiteralObject(ABC):
     def __str__(self) -> str:

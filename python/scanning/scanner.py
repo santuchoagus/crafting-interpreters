@@ -1,10 +1,11 @@
-from errors import error
+from errors import ErrorReporter
 
 class Scanner:
-    def __init__(self, source: str):
+    def __init__(self, source: str, reporter: ErrorReporter):
         self.source: str = source
         self.tokens: list[Token] = list()
         self.line: int = 0
+        self.reporter: ErrorReporter = reporter
 
     def addToken(self, token: Token) -> None:
         self.tokens.append(token)
@@ -61,6 +62,13 @@ class Scanner:
                         self.addToken(Token(TokenType.IDENTIFIER, identifier, None, self.line))
                     
             if insideIdentifier:
+                if self.peek(i+1) is None:
+                    scanRange = (scanRange[0], i+1)
+                    identifier = self.source[scanRange[0]:scanRange[1]]
+                    if identifier in KeywordMap.keys():
+                        self.addToken(Token(KeywordMap[identifier], identifier, None, self.line))
+                    else:
+                        self.addToken(Token(TokenType.IDENTIFIER, identifier, None, self.line))
                 continue
 
             if shouldSkip:
@@ -75,9 +83,9 @@ class Scanner:
                 nextChar = self.peek(i+1)
                 if c == ".":
                     if not nextChar or not nextChar.isdigit():
-                        error(self.line, "decimal dot should be followed by digit") 
+                        self.reporter.report(self.line, self.source[scanRange[0]:i+1], "Number shouldn't end with a decimal dot.") 
                     if decimalDotWasVisited:
-                        error(self.line, "decimal dot was already visited")
+                        self.reporter.report(self.line, self.source[scanRange[0]:i+1], "Multiple dots in decimal definition.")
                     decimalDotWasVisited = True
                 else:
                     insideNumber = False
@@ -85,6 +93,9 @@ class Scanner:
                     self.addToken(Token(TokenType.NUMBER, self.source[scanRange[0]:scanRange[1]], None, self.line))
             
             if insideNumber:
+                if self.peek(i+1) is None:
+                    scanRange = (scanRange[0], i+1)
+                    self.addToken(Token(TokenType.NUMBER, self.source[scanRange[0]:scanRange[1]], None, self.line))
                 continue
             decimalDotWasVisited = False
 
@@ -106,6 +117,16 @@ class Scanner:
                     self.addToken(Token(TokenType.COMMA, c, None, self.line))
                 case ";":
                     self.addToken(Token(TokenType.SEMICOLON, c, None, self.line))
+                case "+":
+                    self.addToken(Token(TokenType.PLUS, c, None, self.line))
+                case "-":
+                    self.addToken(Token(TokenType.MINUS, c, None, self.line))
+                case "*":
+                    self.addToken(Token(TokenType.STAR, c, None, self.line))
+                case "?":
+                    self.addToken(Token(TokenType.QUESTION, c, None, self.line))
+                case ":":
+                    self.addToken(Token(TokenType.COLON, c, None, self.line))
                 case "=":
                     if self.matchAt(i+1, "="):
                         self.addToken(Token(TokenType.EQUAL_EQUAL, "==", None, self.line))
@@ -133,7 +154,7 @@ class Scanner:
                     self.addToken(Token(TokenType.STRING, str_literal, None, self.line))
                     
                 case _:
-                    error(self.line, f"Unrecognized token \"{c}\"")
+                    self.reporter.report(self.line, c, "Unrecognized token.")
         ...
 
         self.tokens.append(Token(TokenType.EOF, "", None, self.line))
@@ -159,9 +180,15 @@ class TokenType(StrEnum):
     LEFT_BRACE = auto()
     RIGHT_BRACE = auto()
     COMMA = auto()
+    QUESTION = auto()
+    COLON = auto()
     SEMICOLON = auto()
     BANG = auto()
 
+    GREATER = auto()
+    GREATER_EQUAL = auto()
+    LESS = auto()
+    LESS_EQUAL = auto()
     EQUAL = auto()
 
     SLASH = auto()
@@ -187,6 +214,7 @@ class TokenType(StrEnum):
     CLASS = auto()
     TRUE = auto()
     FALSE = auto()
+    NIL = auto()
     FOR = auto()
     PRINT = auto()
     RETURN = auto()

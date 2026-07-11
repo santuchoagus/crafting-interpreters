@@ -13,3 +13,5 @@ class AstPrinter(Expr.Visitor[str]):
         return f"(group {expr.expr.accept(self)})"
     def visitLiteralExpr(self, expr: LiteralExpr) -> str:
         return expr.value.__str__()
+    def visitErrorExpr(self, _: ErrorExpr) -> str:
+        return ""
