@@ -1,10 +1,11 @@
 from errors import ErrorReporter
+from scanning import Token, TokenType
 
 class Scanner:
     def __init__(self, source: str, reporter: ErrorReporter):
         self.source: str = source
         self.tokens: list[Token] = list()
-        self.line: int = 0
+        self.line: int = 1
         self.reporter: ErrorReporter = reporter
 
     def addToken(self, token: Token) -> None:
@@ -22,7 +23,7 @@ class Scanner:
         return True
     
     def scanTokens(self) -> list[Token]:
-        self.line = 0
+        self.line = 1
         self.tokens.clear()
 
         shouldSkip: bool = False
@@ -160,72 +161,10 @@ class Scanner:
         self.tokens.append(Token(TokenType.EOF, "", None, self.line))
         return self.tokens.copy()
 
-from enum import StrEnum, auto
-
-class Token:
-    def __init__(self, type: TokenType, lexeme: str, literal: object, line: int):
-        self.type = type
-        self.lexeme = lexeme
-        self.literal = object
-        self.line = line
-    
-    def __str__(self) -> str:
-        return f"({self.type} [{self.line}] {self.lexeme} {self.literal})"
-
-
-
-class TokenType(StrEnum):
-    LEFT_PAREN = auto()
-    RIGHT_PAREN = auto()
-    LEFT_BRACE = auto()
-    RIGHT_BRACE = auto()
-    COMMA = auto()
-    QUESTION = auto()
-    COLON = auto()
-    SEMICOLON = auto()
-    BANG = auto()
-
-    GREATER = auto()
-    GREATER_EQUAL = auto()
-    LESS = auto()
-    LESS_EQUAL = auto()
-    EQUAL = auto()
-
-    SLASH = auto()
-    STAR = auto()
-
-    IDENTIFIER = auto()
-    STRING = auto()
-    NUMBER = auto()
-
-    VAR = auto()
-    EOF = auto()
-
-    EQUAL_EQUAL = auto()
-    BANG_EQUAL = auto()
-
-    PLUS = auto()
-    MINUS = auto()
-    
-    AND = auto()
-    OR = auto()
-    IF = auto()
-    ELSE = auto()
-    CLASS = auto()
-    TRUE = auto()
-    FALSE = auto()
-    NIL = auto()
-    FOR = auto()
-    PRINT = auto()
-    RETURN = auto()
-    THIS = auto()
-    WHILE = auto()
-    FUN = auto()
-
-
 KeywordMap = {
     "for": TokenType.FOR,
     "fun": TokenType.FUN,
+    "print": TokenType.PRINT,
     "var": TokenType.VAR,
     "true": TokenType.TRUE,
     "false": TokenType.FALSE,

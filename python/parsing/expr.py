@@ -1,9 +1,9 @@
 from scanning import Token
-from typing import Literal, Protocol, TypeVar, Generic
+from typing import Protocol, Generic
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from parsing.r_typevar import R
 
-R = TypeVar("R", covariant=True)
 # Visitor pattern to define operations
 class Expr(ABC):
     @abstractmethod
@@ -15,49 +15,20 @@ class Expr(ABC):
         def visitBinaryExpr(self, expr: BinaryExpr) -> R: ...
         def visitTernaryExpr(self, expr: TernaryExpr) -> R: ...
         def visitGroupingExpr(self, expr: GroupingExpr) -> R: ...
+        def visitVarExpr(self, expr: VarExpr) -> R: ...
         def visitErrorExpr(self, expr: ErrorExpr) -> R: ...
+        def visitAssignExpr(self, expr: AssignExpr) -> R: ...
 
 
 @dataclass
 class ErrorExpr(Expr):
+    token: Token
     def accept(self, visitor: Expr.Visitor[R]) -> R:
         return visitor.visitErrorExpr(self)
 
-class LiteralObject(ABC):
-    def __str__(self) -> str:
-        return "<object>"
-
-@dataclass
-class LiteralNumber(LiteralObject):
-    value: float
-    def __str__(self) -> str:
-        return self.value.__str__()
-    
-@dataclass
-class LiteralString(LiteralObject):
-    value: str
-    def __str__(self) -> str:
-        return f"\"{self.value}\""
-
-@dataclass
-class LiteralTrue(LiteralObject):
-    def __str__(self) -> str:
-        return "True"
-
-@dataclass
-class LiteralFalse(LiteralObject):
-    def __str__(self) -> str:
-        return "False"
-
-
-@dataclass
-class LiteralNil(LiteralObject):
-    def __str__(self) -> str:
-        return "Nil"
-
 @dataclass
 class LiteralExpr(Expr):
-    value: LiteralObject
+    value: object
     def accept(self, visitor: Expr.Visitor[R]) -> R:
         return visitor.visitLiteralExpr(self)
 
@@ -92,5 +63,17 @@ class GroupingExpr(Expr):
     def accept(self, visitor: Expr.Visitor[R]) -> R:
         return visitor.visitGroupingExpr(self)
 
+@dataclass
+class VarExpr(Expr):
+    name: Token
+    def accept(self, visitor: Expr.Visitor[R]) -> R:
+        return visitor.visitVarExpr(self)
+    
+@dataclass 
+class AssignExpr(Expr):
+    name: Token
+    expr: Expr
+    def accept(self, visitor: Expr.Visitor[R]) -> R:
+        return visitor.visitAssignExpr(self)
 
 
