@@ -2,6 +2,7 @@ from scanning import Token, TokenType
 from parsing.expr import *
 from parsing.stmt import *
 from errors import ErrorReporter, ParseError
+from typing import cast
 
 class Parser:
     def __init__(self, tokens: list[Token], reporter: ErrorReporter):
@@ -41,7 +42,7 @@ class Parser:
         else:
             return None
     
-    def consume(self, *types: TokenType, error_message: str) -> None:
+    def consume(self, *types: TokenType, error_message: str = "") -> None:
         token: Token | None = self.match(*types)
         if token is None or token.type not in types:
             raise ParseError(self.peek(), f"{error_message}")
@@ -67,15 +68,89 @@ class Parser:
         return VarDeclStmt(identifier, initializer)
 
     def statement(self) -> Stmt:
+        if (token := self.peek()) is not None and token.type is TokenType.IF:
+            return self.ifStatement()
         if (token := self.peek()) is not None and token.type is TokenType.PRINT:
             self.consume(TokenType.PRINT, error_message="")
             return self.printStatement()
         elif (token := self.peek()) is not None and token.type is TokenType.LEFT_BRACE:
             return self.blockStatement()
+        elif (token := self.peek()) is not None and token.type is TokenType.WHILE:
+            return self.whileStatement()
+        elif (token := self.peek()) is not None and token.type is TokenType.FOR:
+            return self.forStatement()
         elif (token := self.peek()) is not None:
             return self.expressionStatement()
         raise Exception("Unreachable")
     
+    def whileStatement(self) -> Stmt:
+        self.consume(TokenType.WHILE)
+        self.consume(TokenType.LEFT_PAREN, error_message="Expected \"(\" after \"while\".")
+        condition: Expr = self.expression()
+        self.consume(TokenType.RIGHT_PAREN, error_message="Expected \")\" after conditional expression.")
+        body: Stmt = self.statement()
+        return WhileStmt(condition, body)
+    
+    
+    def forStatement(self) -> Stmt:
+        self.consume(TokenType.FOR)
+        self.consume(TokenType.LEFT_PAREN, error_message="Expected \"(\" after \"for\".")
+        
+        # initiliazer
+        initializer: VarDeclStmt | ExpressionStmt | None = None
+        has_initializer: bool = False
+        try:
+            initializer = cast(VarDeclStmt, self.varDeclaration())
+            has_initializer = True
+        except:
+            pass
+        try:
+            if not has_initializer:
+                initializer = cast(ExpressionStmt, self.expressionStatement())
+                has_initializer = True
+        except:
+            pass
+        try:
+            if not has_initializer:
+                self.consume(TokenType.SEMICOLON)
+        except:
+            token: Token | None = self.peek()
+            raise ParseError(token, f"Expected initializer after \"for\".")
+        
+        # condition
+        condition: Expr | None = None
+        if (token := self.peek()) is not None and token.type is TokenType.SEMICOLON:
+            self.consume(TokenType.SEMICOLON)
+        else:
+            condition = self.expression()
+            self.consume(TokenType.SEMICOLON)
+
+        # increment
+        increment: Expr | None = None
+        if (token := self.peek()) is not None and token.type is not TokenType.RIGHT_PAREN:
+            increment = self.expression()
+
+        self.consume(TokenType.RIGHT_PAREN)
+        # body
+        body: Stmt = self.statement()
+        
+        
+        return BlockStmt([
+            ForStmt(initializer, condition, increment, body)
+        ])
+
+    def ifStatement(self) -> Stmt:
+        self.consume(TokenType.IF)
+        self.consume(TokenType.LEFT_PAREN, error_message="Expected \"(\" after \"if\".")
+        condition: Expr = self.expression()
+        self.consume(TokenType.RIGHT_PAREN, error_message="Expected \")\" after conditional expression.")
+        then_stmt: Stmt = self.statement()
+        else_stmt: Stmt | None = None
+        if (token := self.peek()) is not None and token.type is TokenType.ELSE:
+             self.consume(TokenType.ELSE)
+             else_stmt = self.statement()
+        return IfStmt(condition, then_stmt, else_stmt)
+
     def blockStatement(self) -> Stmt:
         self.consume(TokenType.LEFT_BRACE, error_message="")
         statements: list[Stmt] = list()
@@ -117,7 +192,7 @@ class Parser:
         return expr
     
     def assignment(self) -> Expr:
-        expr: Expr = self.equality()
+        expr: Expr = self.logicOr()
         token: Token | None = self.match(TokenType.EQUAL)
         if token is not None:
             value: Expr = self.assignment()
@@ -129,12 +204,32 @@ class Parser:
     # I can do right recursion here because I already consumed the left tokens
     # conditional -> equality ("?" expression ":" conditional)?
     def conditional(self) -> Expr:
-        expr: Expr = self.equality()
+        expr: Expr = self.logicOr()
         if (token := self.match(TokenType.QUESTION)) is not None:
             middle_expr: Expr = self.expression()
             if self.match(TokenType.COLON) is not None:
                 right_expr: Expr = self.conditional()
                 expr = TernaryExpr(token, expr, middle_expr, right_expr)
+        return expr
+    
+    # def logical(self) -> Expr:
+    #     expr: Expr = self.logicOr()
+    #     if (token := self.peek()) is not None and token.type is TokenType.OR:
+    #         return self.logicOr() 
+    #     return self.equality()
+    
+    def logicOr(self) -> Expr:
+        expr: Expr = self.logicAnd()
+        while (token := self.match(TokenType.OR)) is not None:
+            right_expr: Expr = self.logicAnd()
+            expr = LogicalExpr(token, expr, right_expr)
+        return expr
+
+    def logicAnd(self) -> Expr:
+        expr: Expr = self.equality()
+        while (token := self.match(TokenType.AND)) is not None:
+            right_expr: Expr = self.equality()
+            expr = LogicalExpr(token, expr, right_expr)
         return expr
     
     def equality(self) -> Expr:

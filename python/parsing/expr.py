@@ -18,6 +18,7 @@ class Expr(ABC):
         def visitVarExpr(self, expr: VarExpr) -> R: ...
         def visitErrorExpr(self, expr: ErrorExpr) -> R: ...
         def visitAssignExpr(self, expr: AssignExpr) -> R: ...
+        def visitLogicalExpr(self, expr: LogicalExpr) -> R: ...
 
 
 @dataclass
@@ -75,5 +76,14 @@ class AssignExpr(Expr):
     expr: Expr
     def accept(self, visitor: Expr.Visitor[R]) -> R:
         return visitor.visitAssignExpr(self)
+
+    
+@dataclass 
+class LogicalExpr(Expr):
+    operator: Token
+    left: Expr
+    right: Expr
+    def accept(self, visitor: Expr.Visitor[R]) -> R:
+        return visitor.visitLogicalExpr(self)
 
 

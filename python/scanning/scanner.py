@@ -140,6 +140,18 @@ class Scanner:
                         shouldSkip = True
                     else:
                         self.addToken(Token(TokenType.BANG, c, None, self.line))
+                case ">":
+                    if self.matchAt(i+1, "="):
+                        self.addToken(Token(TokenType.GREATER_EQUAL, ">=", None, self.line))
+                        shouldSkip = True
+                    else:
+                        self.addToken(Token(TokenType.GREATER, c, None, self.line))
+                case "<":
+                    if self.matchAt(i+1, "="):
+                        self.addToken(Token(TokenType.LESS_EQUAL, "<=", None, self.line))
+                        shouldSkip = True
+                    else:
+                        self.addToken(Token(TokenType.LESS, c, None, self.line))
                 case "/":
                     if self.matchAt(i+1, "/"):
                         insideComment = True
@@ -162,12 +174,15 @@ class Scanner:
         return self.tokens.copy()
 
 KeywordMap = {
-    "for": TokenType.FOR,
     "fun": TokenType.FUN,
     "print": TokenType.PRINT,
     "var": TokenType.VAR,
     "true": TokenType.TRUE,
     "false": TokenType.FALSE,
     "and": TokenType.AND,
-    "or": TokenType.OR
+    "or": TokenType.OR,
+    "if": TokenType.IF,
+    "else": TokenType.ELSE,
+    "for": TokenType.FOR,
+    "while": TokenType.WHILE
 }

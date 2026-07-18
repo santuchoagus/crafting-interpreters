@@ -15,6 +15,9 @@ class Stmt(ABC):
         def visitVarDeclStmt(self, stmt: VarDeclStmt) -> R: ...
         def visitPrintStmt(self, stmt: PrintStmt) -> R: ...
         def visitBlockStmt(self, stmt: BlockStmt) -> R: ...
+        def visitIfStmt(self, stmt: IfStmt) -> R: ...
+        def visitWhileStmt(self, stmt: WhileStmt) -> R: ...
+        def visitForStmt(self, stmt: ForStmt) -> R: ...
 
 
 @dataclass
@@ -41,3 +44,27 @@ class BlockStmt(Stmt):
     statements: list[Stmt]
     def accept(self, visitor: Stmt.Visitor[R]) -> R:
         return visitor.visitBlockStmt(self)
+    
+@dataclass
+class IfStmt(Stmt):
+    condition: Expr
+    then_stmt: Stmt
+    else_stmt: Stmt | None
+    def accept(self, visitor: Stmt.Visitor[R]) -> R:
+        return visitor.visitIfStmt(self)
+
+@dataclass
+class WhileStmt(Stmt):
+    condition: Expr
+    body: Stmt
+    def accept(self, visitor: Stmt.Visitor[R]) -> R:
+        return visitor.visitWhileStmt(self)
+
+@dataclass
+class ForStmt(Stmt):
+    initializer: VarDeclStmt | ExpressionStmt | None
+    condition: Expr | None
+    increment: Expr | None
+    body: Stmt
+    def accept(self, visitor: Stmt.Visitor[R]) -> R:
+        return visitor.visitForStmt(self)

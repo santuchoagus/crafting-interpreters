@@ -51,6 +51,14 @@ class Interpreter(Expr.Visitor[object], Stmt.Visitor[None]):
         value: object = self.evaluate(stmt.expr)
         print(self.stringify(value))
 
+    def visitIfStmt(self, stmt: IfStmt) -> None:
+        value: object = self.evaluate(stmt.condition)
+        if (self.isTruthy(value)):
+            self.execute(stmt.then_stmt)
+        elif stmt.else_stmt is not None:
+            self.execute(stmt.else_stmt)
+        
+
     def visitLiteralExpr(self, expr: LiteralExpr) -> object:
             return expr.value
     
@@ -94,7 +102,40 @@ class Interpreter(Expr.Visitor[object], Stmt.Visitor[None]):
         finally:
             self.environment = previous_environment
     
+    def visitLogicalExpr(self, expr: LogicalExpr) -> object:
+        left: object = self.evaluate(expr.left)
+        
+        if expr.operator.type == TokenType.OR:
+            if self.isTruthy(left):
+                return left
+        else: # we are at and branch here
+            if not self.isTruthy(left):
+                return left
+            
+        return self.evaluate(expr.right)
     
+    def visitWhileStmt(self, stmt: WhileStmt) -> None:
+        while (self.isTruthy(self.evaluate(stmt.condition))):
+            self.execute(stmt.body)
+
+    def visitForStmt(self, stmt: ForStmt) -> None:
+        initializer: Stmt | None = stmt.initializer
+        if initializer:
+            self.execute(initializer)
+        
+        condition: Expr = LiteralExpr(True)
+        if stmt.condition:
+            condition = stmt.condition
+        
+        increment: Expr | None = stmt.increment
+
+        body: Stmt = stmt.body
+        while(self.isTruthy(self.evaluate(condition))):
+            self.execute(body)
+            if increment:
+                self.evaluate(increment)
+        
+        
 
     def visitBinaryExpr(self, expr: BinaryExpr) -> object:
         left_obj: object = self.evaluate(expr.left)
