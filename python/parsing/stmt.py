@@ -14,6 +14,7 @@ class Stmt(ABC):
         def visitExpressionStmt(self, stmt: ExpressionStmt) -> R: ...
         def visitVarDeclStmt(self, stmt: VarDeclStmt) -> R: ...
         def visitPrintStmt(self, stmt: PrintStmt) -> R: ...
+        def visitBlockStmt(self, stmt: BlockStmt) -> R: ...
 
 
 @dataclass
@@ -34,3 +35,9 @@ class PrintStmt(Stmt):
     expr: Expr
     def accept(self, visitor: Stmt.Visitor[R]) -> R:
         return visitor.visitPrintStmt(self)
+    
+@dataclass
+class BlockStmt(Stmt):
+    statements: list[Stmt]
+    def accept(self, visitor: Stmt.Visitor[R]) -> R:
+        return visitor.visitBlockStmt(self)

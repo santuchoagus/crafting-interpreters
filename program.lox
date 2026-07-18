@@ -1,0 +1,8 @@
+var foo = 30;
+foo = 29;
+{
+    foo = foo + 1;
+    var foo;
+    print foo;
+}
+print foo;

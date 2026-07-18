@@ -1,8 +1,10 @@
 import sys
 from scanning import Token, Scanner
 from parsing.parser import Parser, Expr
+from parsing.stmt import Stmt
 from parsing.ast_printer import AstPrinter
 from errors import ErrorReporter
+from interpret.interpreter import Interpreter
 
 import os
 
@@ -31,12 +33,12 @@ def run(source: str, reporter: ErrorReporter) -> None:
     scanner: Scanner = Scanner(source, reporter)
     tokens: list[Token] = scanner.scanTokens()
     parser: Parser = Parser(tokens, reporter)
-    expression: Expr | None = parser.parse()
-    if expression is None:
+    program: list[Stmt] | None = parser.parse()
+    if program is None:
         print("Aborted")
         return
-    
-    print(AstPrinter().print(expression))
+    interpreter: Interpreter = Interpreter(reporter)
+    interpreter.interpret(program)
     
 
 def main() -> None:
@@ -54,5 +56,7 @@ def main() -> None:
         print("Usage: command <file_path>")
         exit(64)
 
+
 if __name__ == "__main__":
     main()
+    # run("print \"foo\"; ", ErrorReporter())

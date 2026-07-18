@@ -78,6 +78,22 @@ class Interpreter(Expr.Visitor[object], Stmt.Visitor[None]):
         self.environment.assign(expr.name, value)
         return value
 
+    def visitBlockStmt(self, stmt: BlockStmt) -> None:
+        # execute the current block
+        fresh_environment: Environment = Environment(self.environment)
+        self.executeBlock(stmt.statements, fresh_environment)
+
+    def executeBlock(self, statements: list[Stmt], env: Environment) -> None:
+        previous_environment: Environment = self.environment
+        try:
+            self.environment = env
+            for statement in statements:
+                self.execute(statement)
+        finally:
+            self.environment = previous_environment
+    
+    
+
     def visitBinaryExpr(self, expr: BinaryExpr) -> object:
         left_obj: object = self.evaluate(expr.left)
         right_obj: object = self.evaluate(expr.right)

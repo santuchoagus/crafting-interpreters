@@ -44,7 +44,7 @@ class Parser:
     def consume(self, *types: TokenType, error_message: str) -> None:
         token: Token | None = self.match(*types)
         if token is None or token.type not in types:
-            raise ParseError(f"{error_message}")
+            raise ParseError(self.peek(), f"{error_message}")
 
     # grammar
     def declaration(self) -> Stmt:
@@ -57,7 +57,7 @@ class Parser:
         self.consume(TokenType.VAR, error_message="")
         identifier: Token | None = self.match(TokenType.IDENTIFIER)
         if identifier is None:
-            raise ParseError(f"Expected variable name.")
+            raise ParseError(self.peek(), f"Expected variable name.")
         
         initializer: Expr | None = None
         if (token := self.match(TokenType.EQUAL)) is not None:
@@ -70,9 +70,24 @@ class Parser:
         if (token := self.peek()) is not None and token.type is TokenType.PRINT:
             self.consume(TokenType.PRINT, error_message="")
             return self.printStatement()
+        elif (token := self.peek()) is not None and token.type is TokenType.LEFT_BRACE:
+            return self.blockStatement()
         elif (token := self.peek()) is not None:
             return self.expressionStatement()
         raise Exception("Unreachable")
+    
+    def blockStatement(self) -> Stmt:
+        self.consume(TokenType.LEFT_BRACE, error_message="")
+        statements: list[Stmt] = list()
+
+        while (token := self.peek()) is not None:
+            t: TokenType = token.type
+            if t is TokenType.RIGHT_BRACE or t is TokenType.EOF:
+                break
+            statements.append(self.declaration())
+
+        self.consume(TokenType.RIGHT_BRACE, error_message="Expected \"}\" after block.")
+        return BlockStmt(statements)
 
     def printStatement(self) -> Stmt:
         expr: Expr = self.expression()
@@ -176,7 +191,7 @@ class Parser:
         
         if (token := self.peek()) is not None:
             self.reporter.report(token.line, token.lexeme, "Expected expression.")
-        raise ParseError("Expected expression, unrecoverable error.")
+        raise ParseError(self.peek(), "Expected expression, unrecoverable error.")
     
     def synchronize(self) -> None:
         self.curr_index += 1
