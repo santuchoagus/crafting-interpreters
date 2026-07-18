@@ -6,9 +6,11 @@ from errors import ErrorReporter, LoxRuntimeError
 from interpret.environment import Environment
 
 class Interpreter(Expr.Visitor[object], Stmt.Visitor[None]):
-    def __init__(self, reporter: ErrorReporter) -> None:
+    def __init__(self, reporter: ErrorReporter, env: Environment | None = None) -> None:
         self.reporter: ErrorReporter = reporter
         self.environment: Environment = Environment()
+        if env:
+            self.environment = env
 
     def stringify(self, obj: object) -> str:
         if obj is None:
