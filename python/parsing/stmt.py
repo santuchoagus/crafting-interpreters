@@ -13,11 +13,13 @@ class Stmt(ABC):
     class Visitor(Protocol, Generic[R]):
         def visitExpressionStmt(self, stmt: ExpressionStmt) -> R: ...
         def visitVarDeclStmt(self, stmt: VarDeclStmt) -> R: ...
+        def visitFunDeclStmt(self, stmt: FunDeclStmt) -> R: ...
         def visitPrintStmt(self, stmt: PrintStmt) -> R: ...
         def visitBlockStmt(self, stmt: BlockStmt) -> R: ...
         def visitIfStmt(self, stmt: IfStmt) -> R: ...
         def visitWhileStmt(self, stmt: WhileStmt) -> R: ...
         def visitForStmt(self, stmt: ForStmt) -> R: ...
+        def visitReturnStmt(self, stmt: ReturnStmt) -> R: ...
 
 
 @dataclass
@@ -32,6 +34,14 @@ class VarDeclStmt(Stmt):
     init: Expr | None
     def accept(self, visitor: Stmt.Visitor[R]) -> R:
         return visitor.visitVarDeclStmt(self)
+
+@dataclass
+class FunDeclStmt(Stmt):
+    name: Token
+    parameters: list[Token] # identifier tokens
+    body: list[Stmt]
+    def accept(self, visitor: Stmt.Visitor[R]) -> R:
+        return visitor.visitFunDeclStmt(self)
     
 @dataclass
 class PrintStmt(Stmt):
@@ -68,3 +78,10 @@ class ForStmt(Stmt):
     body: Stmt
     def accept(self, visitor: Stmt.Visitor[R]) -> R:
         return visitor.visitForStmt(self)
+    
+@dataclass
+class ReturnStmt(Stmt):
+    token: Token
+    value: Expr | None
+    def accept(self, visitor: Stmt.Visitor[R]) -> R:
+        return visitor.visitReturnStmt(self)

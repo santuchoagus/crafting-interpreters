@@ -24,3 +24,7 @@ class Environment:
         if self.parent is not None:
             return self.parent.get(name)
         raise LoxRuntimeError(name, f"[Line {name.line}] Error: Undefined variable \"{name.lexeme}\".")
+
+class Return(Exception):
+    def __init__(self, value: object) -> None:
+        self.value = value

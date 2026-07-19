@@ -19,7 +19,7 @@ class Expr(ABC):
         def visitErrorExpr(self, expr: ErrorExpr) -> R: ...
         def visitAssignExpr(self, expr: AssignExpr) -> R: ...
         def visitLogicalExpr(self, expr: LogicalExpr) -> R: ...
-
+        def visitCallExpr(self, expr: CallExpr) -> R: ...
 
 @dataclass
 class ErrorExpr(Expr):
@@ -86,4 +86,12 @@ class LogicalExpr(Expr):
     def accept(self, visitor: Expr.Visitor[R]) -> R:
         return visitor.visitLogicalExpr(self)
 
+
+@dataclass
+class CallExpr(Expr):
+    callee: Expr
+    paren: Token # this is to error handling
+    arguments: list[Expr]
+    def accept(self, visitor: Expr.Visitor[R]) -> R:
+        return visitor.visitCallExpr(self)
 

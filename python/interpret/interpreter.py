@@ -3,14 +3,24 @@ from parsing.stmt import *
 from scanning import Token, TokenType
 from typing import cast
 from errors import ErrorReporter, LoxRuntimeError
-from interpret.environment import Environment
+from interpret.environment import Environment, Return
+from interpret.natives import *
+from abc import ABC, abstractmethod
 
 class Interpreter(Expr.Visitor[object], Stmt.Visitor[None]):
     def __init__(self, reporter: ErrorReporter, env: Environment | None = None) -> None:
         self.reporter: ErrorReporter = reporter
         self.environment: Environment = Environment()
+        self.globals: Environment = Environment()
         if env:
             self.environment = env
+        self.initGlobals()
+    
+    def initGlobals(self) -> None:
+        self.globals.define(
+            Token(TokenType.IDENTIFIER, "clock", None, -1),
+            clockCallable()
+        )
 
     def stringify(self, obj: object) -> str:
         if obj is None:
@@ -80,8 +90,17 @@ class Interpreter(Expr.Visitor[object], Stmt.Visitor[None]):
             value = self.evaluate(stmt.init)
         self.environment.define(stmt.name, value)
 
+    def visitFunDeclStmt(self, stmt: FunDeclStmt) -> None:
+        self.environment.define(
+            stmt.name,
+            LoxFunction(stmt, self.environment)
+        )
+
     def visitVarExpr(self, expr: VarExpr) -> object:
-        return self.environment.get(expr.name)
+        try:
+            return self.environment.get(expr.name)
+        except:
+            return self.globals.get(expr.name)
     
     def visitAssignExpr(self, expr: AssignExpr) -> object:
         value: object = self.evaluate(expr.expr)
@@ -135,7 +154,26 @@ class Interpreter(Expr.Visitor[object], Stmt.Visitor[None]):
             if increment:
                 self.evaluate(increment)
         
+    def visitCallExpr(self, expr: CallExpr) -> object:
+        callee: object = self.evaluate(expr.callee)
+
+        arguments: list[object] = list()
+        for arg in expr.arguments:
+            arguments.append(self.evaluate(arg))
         
+        if not isinstance(callee, LoxCallable):
+            raise LoxRuntimeError(expr.paren, "Can only call functions and classes.")
+
+        f: LoxCallable = callee
+        if f.arity() != len(arguments):
+            raise LoxRuntimeError(expr.paren, f"Expected {f.arity()} arguments but got {len(arguments)} instead.")
+        return f.call(self, arguments)
+
+    def visitReturnStmt(self, stmt: ReturnStmt) -> None:
+        value: object = None
+        if stmt.value:
+            value = self.evaluate(stmt.value)
+        raise Return(value)
 
     def visitBinaryExpr(self, expr: BinaryExpr) -> object:
         left_obj: object = self.evaluate(expr.left)
@@ -159,12 +197,13 @@ class Interpreter(Expr.Visitor[object], Stmt.Visitor[None]):
             case TokenType.PLUS:
                 if (isinstance(left_obj, float) and isinstance(right_obj, float)):
                     return left_obj + right_obj
-                if (isinstance(left_obj, str) and isinstance(right_obj, str)):
-                    return left_obj + right_obj
-                if (isinstance(left_obj, str) and isinstance(right_obj, float)):
+                # if (isinstance(left_obj, str) and isinstance(right_obj, str)):
+                #     return left_obj + right_obj
+                # if (isinstance(left_obj, str) and isinstance(right_obj, float)):
+                #     return left_obj + str(right_obj)
+                if isinstance(left_obj, str):
                     return left_obj + str(right_obj)
-                if (isinstance(left_obj, float) and isinstance(right_obj, str)):
-                    return str(left_obj) + right_obj
+                
                 token: Token = expr.token
                 raise LoxRuntimeError(token, f"[Line {token.line}] Runtime Error: At {token.lexeme}: Operands must match (Numbers or Strings).")
             case TokenType.GREATER:

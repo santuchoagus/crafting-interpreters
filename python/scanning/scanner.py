@@ -184,5 +184,6 @@ KeywordMap = {
     "if": TokenType.IF,
     "else": TokenType.ELSE,
     "for": TokenType.FOR,
-    "while": TokenType.WHILE
+    "while": TokenType.WHILE,
+    "return": TokenType.RETURN
 }

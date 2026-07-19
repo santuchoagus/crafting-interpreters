@@ -49,10 +49,39 @@ class Parser:
 
     # grammar
     def declaration(self) -> Stmt:
-        if (token := self.peek()) is not None and token.type is TokenType.VAR:
+        if (token := self.peek()) is not None and token.type is TokenType.FUN:
+            self.consume(TokenType.FUN)
+            return self.functionDeclaration()
+        elif (token := self.peek()) is not None and token.type is TokenType.VAR:
             return self.varDeclaration()
         else:
             return self.statement()
+
+    def functionDeclaration(self) -> Stmt:
+        body: list[Stmt] = list()
+        name: Token | None = self.peek()
+        self.consume(TokenType.IDENTIFIER, error_message="Expected function name after \"fun\".")
+        name = cast(Token, name)
+
+        self.consume(TokenType.LEFT_PAREN, error_message="Expected \"(\" after function name on declaration.")
+        
+        parameters: list[Token] = list()
+        if (token := self.peek()) is not None and token.type is TokenType.RIGHT_PAREN:
+            self.consume(TokenType.RIGHT_PAREN)
+            body = cast(BlockStmt, self.blockStatement(f"Expected \"{{\" before function \"{name.lexeme}\" body.")).statements
+            return FunDeclStmt(name, parameters, body)
+
+        token = cast(Token, self.peek())
+        self.consume(TokenType.IDENTIFIER, error_message="Expected parameter name.")
+        parameters.append(token)
+        while (token := self.match(TokenType.COMMA)) is not None:
+            token = cast(Token, self.peek())
+            self.consume(TokenType.IDENTIFIER, error_message="Expected parameter name.")
+            parameters.append(token)
+
+        self.consume(TokenType.RIGHT_PAREN, error_message="Expected \")\" after arguments.")
+        body = cast(BlockStmt, self.blockStatement()).statements
+        return FunDeclStmt(name, parameters, body)
 
     def varDeclaration(self) -> Stmt:
         self.consume(TokenType.VAR, error_message="")
@@ -79,10 +108,21 @@ class Parser:
             return self.whileStatement()
         elif (token := self.peek()) is not None and token.type is TokenType.FOR:
             return self.forStatement()
+        elif (token := self.peek()) is not None and token.type is TokenType.RETURN:
+            return self.returnStatement()
         elif (token := self.peek()) is not None:
             return self.expressionStatement()
         raise Exception("Unreachable")
     
+    def returnStatement(self) -> Stmt:
+        ret_token: Token = cast(Token, self.peek())
+        expr: Expr | None = None
+        self.consume(TokenType.RETURN)
+        if (token := self.peek()) is not None and token.type is not TokenType.SEMICOLON:
+            expr = self.expression()
+        self.consume(TokenType.SEMICOLON, error_message="Expected \";\" after return statement.")
+        return ReturnStmt(ret_token, expr)
+
     def whileStatement(self) -> Stmt:
         self.consume(TokenType.WHILE)
         self.consume(TokenType.LEFT_PAREN, error_message="Expected \"(\" after \"while\".")
@@ -151,8 +191,8 @@ class Parser:
              else_stmt = self.statement()
         return IfStmt(condition, then_stmt, else_stmt)
 
-    def blockStatement(self) -> Stmt:
-        self.consume(TokenType.LEFT_BRACE, error_message="")
+    def blockStatement(self, error_message: str ="") -> Stmt:
+        self.consume(TokenType.LEFT_BRACE, error_message=error_message)
         statements: list[Stmt] = list()
 
         while (token := self.peek()) is not None:
@@ -177,6 +217,9 @@ class Parser:
     def expression(self) -> Expr:
         return self.comma()
 
+    def noCommaExpression(self) -> Expr:
+        return self.assignment()
+    
     def comma(self) -> Expr:
         # error handling
         if (token := self.peek()) is not None and token.type is TokenType.COMMA:
@@ -264,8 +307,33 @@ class Parser:
         if (token := self.match(TokenType.BANG, TokenType.MINUS)) is not None:
             inner_expr: Expr = self.primary() #rec. des.
             return UnaryExpr(token, inner_expr)
-        return self.primary()
+        return self.callExpression()
         
+    def callExpression(self) -> Expr:
+        expr: Expr = self.primary()
+        while True:
+            if self.match(TokenType.LEFT_PAREN):
+                expr = self.finishCall(expr)
+            else:
+                break
+        if isinstance(expr, CallExpr):
+            if len(expr.arguments) >= 127:
+                self.reporter.error(expr.paren, "Can't have more than 127 arguments")
+        return expr
+
+    def finishCall(self, callee: Expr) -> CallExpr:
+        arguments: list[Expr] = list()
+        if (token := self.peek()) is not None and token.type is TokenType.RIGHT_PAREN:
+            self.consume(TokenType.RIGHT_PAREN)
+            return CallExpr(callee, token, arguments)
+        
+        arguments.append(self.noCommaExpression())
+        while (token := self.match(TokenType.COMMA)) is not None:
+            arguments.append(self.noCommaExpression())
+        token = self.peek()
+        self.consume(TokenType.RIGHT_PAREN, error_message="Expected \")\" after arguments.")
+        return CallExpr(callee, cast(Token, token), arguments)
+
     def primary(self) -> Expr:
         if (token := self.match(TokenType.FALSE)) is not None:
             return LiteralExpr(False)

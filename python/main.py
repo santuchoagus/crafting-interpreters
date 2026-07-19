@@ -41,7 +41,7 @@ def run(source: str, reporter: ErrorReporter, previous_env: Environment) -> Envi
         return previous_env
     if len(program) > 0 and isinstance(program[-1], ExpressionStmt):
         stmt : ExpressionStmt = program[-1]
-        program = program + [PrintStmt(stmt.expr)]
+        program = program[:len(program)-1] + [PrintStmt(stmt.expr)]
     interpreter: Interpreter = Interpreter(reporter, previous_env)
     interpreter.interpret(program)
     return interpreter.environment

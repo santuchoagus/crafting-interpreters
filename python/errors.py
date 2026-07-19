@@ -8,6 +8,9 @@ class ErrorReporter:
     def report(self, line: int, where: str, message: str) -> None:
         print(f"[Line {line}] Error at \"{where}\": {message}")
 
+    def error(self, token: Token, message: str) -> None:
+        print(f"[Line {token.line}] Error at \"{token.lexeme}\": {message}")
+
 class LoxRuntimeError(Exception):
     def __init__(self, token: Token | None, message: str):
         super().__init__(message)
